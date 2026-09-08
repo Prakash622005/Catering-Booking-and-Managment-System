@@ -74,7 +74,7 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: ./mks-catering-frontend/package-lock.json
+          cache-dependency-path: ./catering-microservices/mks-catering-frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: ./catering-microservices/mks-catering-frontend
