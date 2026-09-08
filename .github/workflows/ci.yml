@@ -1,0 +1,85 @@
+name: Catering Application CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  backend-build-test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and test Service Registry
+        working-directory: ./catering-microservices/service-registry
+        run: mvn -B clean verify
+
+      - name: Build and test API Gateway
+        working-directory: ./catering-microservices/api-gateway-service
+        run: mvn -B clean verify
+
+      - name: Build and test Auth Service
+        working-directory: ./catering-microservices/auth-service
+        run: mvn -B clean verify
+
+      - name: Build and test Menu Service
+        working-directory: ./catering-microservices/menu-service
+        run: mvn -B clean verify
+
+      - name: Build and test Booking Service
+        working-directory: ./catering-microservices/booking-service
+        run: mvn -B clean verify
+
+      - name: Build and test Quotation Service
+        working-directory: ./catering-microservices/quotation-service
+        run: mvn -B clean verify
+
+      - name: Build and test Payment Service
+        working-directory: ./catering-microservices/payment-service
+        run: mvn -B clean verify
+
+      - name: Build and test Notification Service
+        working-directory: ./catering-microservices/notification-service
+        run: mvn -B clean verify
+
+
+  frontend-build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout source code
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ./mks-catering-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./catering-microservices/mks-catering-frontend
+        run: npm ci
+
+      - name: Build React frontend
+        working-directory: ./catering-microservices/mks-catering-frontend
+        run: npm run build
