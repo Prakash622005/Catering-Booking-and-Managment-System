@@ -7,11 +7,13 @@ spring:
 
   cloud:
     gateway:
-
       globalcors:
+        add-to-simple-url-handler-mapping: true
+
         corsConfigurations:
           '[/**]':
             allowedOrigins:
+              - "http://localhost:3000"
               - "http://localhost:5173"
 
             allowedMethods:
@@ -23,6 +25,9 @@ spring:
 
             allowedHeaders:
               - "*"
+            allowCredentials: true
+          exposedHeaders:
+                - "Authorization"
 
       routes:
 
@@ -59,7 +64,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://catering-service-registry:8761/eureka/
 
 logging:
   level:

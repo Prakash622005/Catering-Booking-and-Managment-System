@@ -15,7 +15,7 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException ex) {
 
         return ResponseEntity
-                .badRequest()
+                .status(404)
                 .body(ex.getMessage());
     }
 

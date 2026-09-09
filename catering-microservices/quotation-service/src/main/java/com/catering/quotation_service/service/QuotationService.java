@@ -157,18 +157,23 @@ public class QuotationService {
                     new RestTemplate();
 
             restTemplate.put(
-                    "http://localhost:8080/bookings/"
+                    "http://catering-booking-service:8083/bookings/"
                             + quotation.getBookingId()
                             + "/quotation-sent",
                     null
             );
 
+            System.out.println(
+                    "Booking status updated to QUOTATION_SENT"
+            );
+
         } catch (Exception e) {
 
             System.out.println(
-                    "Booking update failed: "
+                    "Booking status update failed: "
                             + e.getMessage()
             );
+
         }
 
         return mapToResponse(

@@ -1,0 +1,75 @@
+1. Service Registry
+
+Build
+cd "P:\Catering Booking and Managment System\catering-microservices\service-registry"
+
+docker build -t catering-service-registry:1.0 .
+Run
+
+If the old container already exists, remove it first:
+
+docker rm -f catering-service-registry
+
+Then:
+
+docker run -d --name catering-service-registry --network catering-network -p 8761:8761 catering-service-registry:1.0
+Check
+docker ps
+
+You should see:
+
+catering-service-registry   ...   0.0.0.0:8761->8761/tcp
+2. API Gateway
+Build
+cd "P:\Catering Booking and Managment System\catering-microservices\api-gateway-service"
+
+docker build -t catering-api-gateway:1.0 .
+Run
+docker rm -f catering-api-gateway
+
+Then:
+
+docker run -d --name catering-api-gateway --network catering-network -p 8080:8080 catering-api-gateway:1.0
+Check
+docker ps
+
+You should see:
+
+catering-api-gateway        ...   0.0.0.0:8080->8080/tcp
+catering-service-registry   ...   0.0.0.0:8761->8761/tcp
+
+
+3.auth-service
+
+PS P:\Catering Booking and Managment System\catering-microservices\auth-service> docker build -t catering-auth-service:1.0 .
+
+3. Verify both are on the same network
+
+docker network inspect catering-network
+
+Under "Containers", you should have:
+
+catering-service-registry
+catering-api-gateway
+4. Check Gateway → Registry communication
+
+docker logs catering-api-gateway
+
+You want to see messages similar to:
+
+Getting all instance registry info from the eureka server
+The response status is 200
+Registering application API-GATEWAY-SERVICE with eureka
+registration status: 204
+
+That confirms:
+
+API Gateway
+     │
+     │ Docker network
+     ↓
+Service Registry
+     │
+     └── Eureka
+
+Important: Don't use ^ before the Docker options in PowerShell. Use the commands exactly as shown above.
