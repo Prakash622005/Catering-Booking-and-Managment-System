@@ -1,7 +1,7 @@
 # ==============================
 # Stage 1: Build the application
 # ==============================
-FROM eclipse-temurin:21-jdk AS build
+FROM maven:3.9.16-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
@@ -12,10 +12,10 @@ COPY pom.xml .
 COPY src ./src
 
 # Build Spring Boot application
-RUN apt-get update \
-    && apt-get install -y maven \
-    && mvn clean package -DskipTests \
-    && JAR=$(find target -maxdepth 1 -type f -name "*.jar" ! -name "*-plain.jar" ! -name "*.original" | head -n 1) \
+RUN mvn clean package -DskipTests \
+    && JAR=$(find target -maxdepth 1 -type f -name "*.jar" \
+    ! -name "*-plain.jar" \
+    ! -name "*.original" | head -n 1) \
     && cp "$JAR" app.jar
 
 
@@ -26,11 +26,11 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-# Copy built JAR from build stage
+# Copy built JAR
 COPY --from=build /app/app.jar app.jar
 
 # Eureka Server port
 EXPOSE 8761
 
-# Start Spring Boot application
+# Start Eureka Server
 ENTRYPOINT ["java", "-jar", "app.jar"]
