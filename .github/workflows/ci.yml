@@ -10,6 +10,15 @@ on:
       - main
 
 
+# ============================================================
+# GITHUB OIDC PERMISSIONS
+# ============================================================
+
+permissions:
+  id-token: write
+  contents: read
+
+
 jobs:
 
   # ============================================================
@@ -22,8 +31,17 @@ jobs:
 
     steps:
 
+      # --------------------------------------------------------
+      # Checkout
+      # --------------------------------------------------------
+
       - name: Checkout source code
         uses: actions/checkout@v6
+
+
+      # --------------------------------------------------------
+      # Java 21
+      # --------------------------------------------------------
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -32,37 +50,78 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+
+      # --------------------------------------------------------
+      # Service Registry
+      # --------------------------------------------------------
+
       - name: Build and test Service Registry
         working-directory: ./catering-microservices/service-registry
         run: mvn -B clean verify
+
+
+      # --------------------------------------------------------
+      # API Gateway
+      # --------------------------------------------------------
 
       - name: Build and test API Gateway
         working-directory: ./catering-microservices/api-gateway-service
         run: mvn -B clean verify
 
+
+      # --------------------------------------------------------
+      # Auth Service
+      # --------------------------------------------------------
+
       - name: Build and test Auth Service
         working-directory: ./catering-microservices/auth-service
         run: mvn -B clean verify
+
+
+      # --------------------------------------------------------
+      # Menu Service
+      # --------------------------------------------------------
 
       - name: Build and test Menu Service
         working-directory: ./catering-microservices/menu-service
         run: mvn -B clean verify
 
+
+      # --------------------------------------------------------
+      # Booking Service
+      # --------------------------------------------------------
+
       - name: Build and test Booking Service
         working-directory: ./catering-microservices/booking-service
         run: mvn -B clean verify
+
+
+      # --------------------------------------------------------
+      # Quotation Service
+      # --------------------------------------------------------
 
       - name: Build and test Quotation Service
         working-directory: ./catering-microservices/quotation-service
         run: mvn -B clean verify
 
+
+      # --------------------------------------------------------
+      # Payment Service
+      # --------------------------------------------------------
+
       - name: Build and test Payment Service
         working-directory: ./catering-microservices/payment-service
         run: mvn -B clean verify
 
+
+      # --------------------------------------------------------
+      # Notification Service
+      # --------------------------------------------------------
+
       - name: Build and test Notification Service
         working-directory: ./catering-microservices/notification-service
         run: mvn -B clean verify
+
 
 
   # ============================================================
@@ -75,14 +134,28 @@ jobs:
 
     steps:
 
+      # --------------------------------------------------------
+      # Checkout
+      # --------------------------------------------------------
+
       - name: Checkout source code
         uses: actions/checkout@v6
+
+
+      # --------------------------------------------------------
+      # Node.js 24
+      # --------------------------------------------------------
 
       - name: Set up Node.js 24
         uses: actions/setup-node@v7
         with:
           node-version: '24'
           package-manager-cache: false
+
+
+      # --------------------------------------------------------
+      # Check frontend files
+      # --------------------------------------------------------
 
       - name: Check frontend files
         working-directory: ./catering-microservices/mks-catering-frontend
@@ -92,20 +165,41 @@ jobs:
           test -f package.json
           test -f package-lock.json
 
+
+      # --------------------------------------------------------
+      # Install dependencies
+      # --------------------------------------------------------
+
       - name: Install frontend dependencies
         working-directory: ./catering-microservices/mks-catering-frontend
         run: npm ci
+
+
+      # --------------------------------------------------------
+      # Build React frontend
+      # --------------------------------------------------------
 
       - name: Build React frontend
         working-directory: ./catering-microservices/mks-catering-frontend
         run: npm run build
 
 
+
   # ============================================================
-  # DOCKER IMAGE BUILD
+  # DOCKER BUILD AND PUSH TO AWS ECR
   # ============================================================
 
   docker-build:
+
+    # ----------------------------------------------------------
+    # Only push Docker images to ECR when code is pushed
+    # directly to main.
+    #
+    # Pull requests will run backend/frontend CI but will NOT
+    # access AWS or push images to ECR.
+    # ----------------------------------------------------------
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
 
@@ -115,130 +209,174 @@ jobs:
 
     steps:
 
+      # --------------------------------------------------------
+      # Checkout
+      # --------------------------------------------------------
+
       - name: Checkout source code
         uses: actions/checkout@v6
 
 
       # --------------------------------------------------------
-      # Docker setup
+      # Docker Buildx
       # --------------------------------------------------------
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
 
-      # --------------------------------------------------------
-      # Build Service Registry
-      # --------------------------------------------------------
+      # ========================================================
+      # AWS OIDC AUTHENTICATION
+      # ========================================================
 
-      - name: Build Service Registry Docker image
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::888163088289:role/GitHubActions-ECR-Push-Role
+          role-session-name: GitHubActions-ECR-Push
+          aws-region: ap-south-1
+          allowed-account-ids: "888163088289"
+
+
+      # ========================================================
+      # LOGIN TO AMAZON ECR
+      # ========================================================
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+
+      # ========================================================
+      # SERVICE REGISTRY
+      # ========================================================
+
+      - name: Build and push Service Registry
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/service-registry
           file: ./catering-microservices/service-registry/Dockerfile
-          push: false
-          tags: catering-service-registry:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-service-registry:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-service-registry:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build API Gateway
-      # --------------------------------------------------------
+      # ========================================================
+      # API GATEWAY
+      # ========================================================
 
-      - name: Build API Gateway Docker image
+      - name: Build and push API Gateway
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/api-gateway-service
           file: ./catering-microservices/api-gateway-service/Dockerfile
-          push: false
-          tags: catering-api-gateway:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-api-gateway:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-api-gateway:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build Auth Service
-      # --------------------------------------------------------
+      # ========================================================
+      # AUTH SERVICE
+      # ========================================================
 
-      - name: Build Auth Service Docker image
+      - name: Build and push Auth Service
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/auth-service
           file: ./catering-microservices/auth-service/Dockerfile
-          push: false
-          tags: catering-auth-service:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-auth-service:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-auth-service:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build Menu Service
-      # --------------------------------------------------------
+      # ========================================================
+      # MENU SERVICE
+      # ========================================================
 
-      - name: Build Menu Service Docker image
+      - name: Build and push Menu Service
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/menu-service
           file: ./catering-microservices/menu-service/Dockerfile
-          push: false
-          tags: catering-menu-service:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-menu-service:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-menu-service:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build Booking Service
-      # --------------------------------------------------------
+      # ========================================================
+      # BOOKING SERVICE
+      # ========================================================
 
-      - name: Build Booking Service Docker image
+      - name: Build and push Booking Service
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/booking-service
           file: ./catering-microservices/booking-service/Dockerfile
-          push: false
-          tags: catering-booking-service:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-booking-service:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-booking-service:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build Quotation Service
-      # --------------------------------------------------------
+      # ========================================================
+      # QUOTATION SERVICE
+      # ========================================================
 
-      - name: Build Quotation Service Docker image
+      - name: Build and push Quotation Service
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/quotation-service
           file: ./catering-microservices/quotation-service/Dockerfile
-          push: false
-          tags: catering-quotation-service:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-quotation-service:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-quotation-service:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build Payment Service
-      # --------------------------------------------------------
+      # ========================================================
+      # PAYMENT SERVICE
+      # ========================================================
 
-      - name: Build Payment Service Docker image
+      - name: Build and push Payment Service
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/payment-service
           file: ./catering-microservices/payment-service/Dockerfile
-          push: false
-          tags: catering-payment-service:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-payment-service:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-payment-service:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build Notification Service
-      # --------------------------------------------------------
+      # ========================================================
+      # NOTIFICATION SERVICE
+      # ========================================================
 
-      - name: Build Notification Service Docker image
+      - name: Build and push Notification Service
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/notification-service
           file: ./catering-microservices/notification-service/Dockerfile
-          push: false
-          tags: catering-notification-service:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-notification-service:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-notification-service:${{ github.sha }}
 
 
-      # --------------------------------------------------------
-      # Build React Frontend
-      # --------------------------------------------------------
+      # ========================================================
+      # REACT FRONTEND
+      # ========================================================
 
-      - name: Build React Frontend Docker image
+      - name: Build and push React Frontend
         uses: docker/build-push-action@v6
         with:
           context: ./catering-microservices/mks-catering-frontend
           file: ./catering-microservices/mks-catering-frontend/Dockerfile
-          push: false
-          tags: catering-frontend:ci
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/catering-frontend:latest
+            ${{ steps.login-ecr.outputs.registry }}/catering-frontend:${{ github.sha }}
