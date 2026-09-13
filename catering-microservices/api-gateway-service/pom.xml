@@ -50,7 +50,11 @@
         </dependency>
 
         <!-- Spring Web -->
-        
+        <!-- Actuator for ALB health checks -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
         <!-- Lombok -->
         <dependency>
